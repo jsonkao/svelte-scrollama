@@ -33,23 +33,48 @@
 	function makeObserver(rootMargin, selector) {
 		destroyObserver();
 
+		/** @type {Object.<string, number>} */
+		const previousY = {};
+
 		observer = new IntersectionObserver(
 			(entries) => {
 				entries.forEach((entry) => {
-					const index = entry.target.getAttribute(attribute);
-					const direction = entry.isIntersecting
-						? entry.boundingClientRect.y < 0
-							? 'up'
-							: 'down'
-						: entry.boundingClientRect.y > 0
-						? 'up'
-						: 'down';
-					if (debug) console.log(index, entry.isIntersecting, direction);
-					if (entry.isIntersecting) onStepEnter({ index, direction });
-					else onStepExit({ index, direction });
+					const index = entry.target.getAttribute(attribute) || '';
+					const {
+						boundingClientRect: { y },
+						isIntersecting
+					} = entry;
+
+					if (debug)
+						console.log({
+							index,
+							y,
+							isIntersecting,
+							previousY: previousY[index]
+						});
+
+					if (isIntersecting) {
+						if (y < previousY[index]) {
+							// Scrolling down enter
+							onStepEnter({ index, direction: 'down' });
+						} else {
+							// Scrolling up enter
+							onStepEnter({ index, direction: 'up' });
+						}
+					} else {
+						if (y > previousY[index]) {
+							// Scrolling up leave
+							onStepExit({ index, direction: 'up' });
+						} else {
+							// Scrolling down leave
+							onStepExit({ index, direction: 'down' });
+						}
+					}
+
+					previousY[index] = y;
 				});
 			},
-			{ rootMargin }
+			{ rootMargin, threshold: [0, 1] }
 		);
 
 		foreground.querySelectorAll(selector).forEach((element) => observer.observe(element));
